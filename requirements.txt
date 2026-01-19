@@ -1,0 +1,12 @@
+# Quantitative Trading Engine - Python Dependencies
+# ==================================================
+#
+# Python Version Requirement: 3.11+
+# (StrEnum is used, which requires Python 3.11+)
+#
+# All dependencies are from Python standard library:
+# - dataclasses
+# - enum
+# - typing
+#
+# No third-party packages are currently required.
