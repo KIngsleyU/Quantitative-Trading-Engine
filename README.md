@@ -102,12 +102,49 @@ The strategy interface will define the contract that all trading strategies must
 
 ### Exchange Interface (`core/exchange.py`)
 
-*Status: Placeholder - To be implemented*
+The exchange module provides an abstraction layer for market connectivity, implementing the abstraction pattern to decouple trading strategies from specific exchange implementations.
 
-Will abstract market connectivity, enabling:
-- Unified API across different exchanges
-- Easy swapping between live and paper trading
-- Seamless backtesting integration
+#### Implementations
+
+- **PaperExchange**: Simulated exchange for testing and backtesting without real trades
+- **BinanceExchange**: Implementation for Binance cryptocurrency exchange (crypto assets)
+- **InteractiveBrokersExchange**: Implementation for Interactive Brokers multi-asset platform (equities, forex)
+- **CMEExchange**: Implementation for Chicago Mercantile Exchange (futures contracts)
+
+#### Features
+
+- **Unified Interface**: All exchanges implement the same `Exchange` abstract base class
+- **Vendor Independence**: Switch brokers without rewriting strategies
+- **Testability**: Paper trading for safe testing without real capital
+- **Polymorphism**: Strategies call the same methods regardless of exchange type
+- **Connection Management**: Built-in connection state tracking
+
+#### Example Usage
+
+```python
+from core.exchange import PaperExchange, BinanceExchange, InteractiveBrokersExchange
+from core.instrument import Equity, Crypto, Future
+
+# Initialize different exchanges
+paper = PaperExchange("Test Account")
+binance = BinanceExchange("Binance Real Acct")
+ibkr = InteractiveBrokersExchange("IBKR Pro")
+
+# Connect to exchanges
+paper.connect()
+binance.connect()
+ibkr.connect()
+
+# Get market prices (polymorphism - same interface)
+equity = Equity.from_api_data({...})
+price = ibkr.get_market_price(equity)
+
+crypto = Crypto.from_api_data({...})
+crypto_price = binance.get_market_price(crypto)
+
+# Place orders (polymorphism - same interface)
+order_id = paper.place_order(equity, 10.0, "BUY")
+```
 
 ### Portfolio Management (`execution/portfolio.py`)
 
@@ -202,19 +239,45 @@ for instrument in portfolio:
     print(f"{instrument.symbol}: Value=${value}, Valid={is_valid}")
 ```
 
+### Exchange Abstraction and Polymorphism
+
+```python
+from core.exchange import PaperExchange, BinanceExchange, InteractiveBrokersExchange, CMEExchange
+from core.instrument import Equity, Crypto, Future
+
+# Create different exchange instances (all implement Exchange interface)
+exchanges = [
+    PaperExchange("Simulated Paper Account"),
+    BinanceExchange("Binance Real Acct"),
+    InteractiveBrokersExchange("IBKR Pro"),
+    CMEExchange("CME Direct")
+]
+
+# Connect to all exchanges (same interface)
+for ex in exchanges:
+    ex.connect()
+
+# Polymorphism: treat all exchanges uniformly
+for ex in exchanges:
+    price = ex.get_market_price(instrument)
+    order_id = ex.place_order(instrument, 1.0, "BUY")
+```
+
 ### Running the Example
 
-The `main.py` file demonstrates instrument creation and polymorphic usage:
+The `main.py` file demonstrates instrument creation, exchange abstraction, and polymorphic usage:
 
 ```bash
 python main.py
 ```
 
 This will:
-- Create instruments using factory methods (`from_api_data()`)
-- Create instruments using direct constructors
-- Demonstrate polymorphic behavior by treating different instrument types uniformly
-- Calculate notional values and validate prices for a portfolio of instruments
+- Create instruments using factory methods (`from_api_data()`) and direct constructors
+- Demonstrate polymorphic instrument handling (treating different types uniformly)
+- Calculate notional values and validate prices for a portfolio
+- Initialize multiple exchange implementations (Paper, Binance, IBKR, CME)
+- Demonstrate exchange abstraction and polymorphism (same interface, different implementations)
+- Simulate order routing across different exchanges based on asset type
 
 ## Development Roadmap
 
@@ -228,17 +291,19 @@ This will:
 - ✅ Notional value calculation with multiplier support
 - ✅ Instrument immutability (frozen dataclasses) for thread-safety
 - ✅ Validation in `__post_init__` methods for asset-specific requirements
-- ✅ Example usage in `main.py` demonstrating polymorphic instrument handling
+- ✅ Exchange abstraction layer with abstract base class (`Exchange`)
+- ✅ Multiple exchange implementations (PaperExchange, BinanceExchange, InteractiveBrokersExchange, CMEExchange)
+- ✅ Connection management and order placement interface
+- ✅ Polymorphic exchange handling (same interface, different implementations)
+- ✅ Example usage in `main.py` demonstrating instrument and exchange polymorphism
 
 **Placeholders (Not Yet Implemented):**
 - ⏳ Strategy framework (`core/strategy.py`)
-- ⏳ Exchange interface (`core/exchange.py`)
 - ⏳ Portfolio management (`execution/portfolio.py`)
 - ⏳ Strategy implementations (`strategies/`)
 - ⏳ Backtesting engine
-- ⏳ Paper trading simulator
 - ⏳ Risk management module
-- ⏳ Order execution system
+- ⏳ Order routing system (currently manual in examples)
 - ⏳ Performance analytics
 
 ### Future Enhancements
@@ -255,8 +320,16 @@ This will:
 ### Factory Pattern
 The `from_api_data()` class methods implement the Factory pattern, providing a consistent interface for creating instruments from raw API responses while handling type conversions and defaults.
 
+### Abstraction Pattern
+The `Exchange` abstract base class (ABC) enforces a contract that all exchange implementations must follow. This allows strategies to interact with any exchange through a uniform interface, enabling seamless switching between paper trading, backtesting, and live exchanges.
+
+### Polymorphism
+Both instruments and exchanges demonstrate polymorphism:
+- **Instruments**: Different asset types (Equity, Future, Option) share the same interface, enabling uniform handling
+- **Exchanges**: Different exchange implementations (Paper, Binance, IBKR, CME) share the same `Exchange` interface, allowing strategies to work with any exchange without code changes
+
 ### Strategy Pattern
-The strategy framework uses the Strategy pattern, allowing runtime selection and swapping of trading algorithms without modifying the engine core.
+The strategy framework (to be implemented) will use the Strategy pattern, allowing runtime selection and swapping of trading algorithms without modifying the engine core.
 
 ### Template Method Pattern
 The instrument hierarchy uses the Template Method pattern in factory methods, where base classes define the parsing algorithm and subclasses customize specific steps.
@@ -264,6 +337,8 @@ The instrument hierarchy uses the Template Method pattern in factory methods, wh
 ## Thread Safety
 
 All instrument instances are **immutable** (`frozen=True`), making them inherently thread-safe. This is critical for high-frequency trading environments where multiple threads may access the same instrument data concurrently.
+
+Exchange implementations maintain their own connection state, and in a production environment would need additional synchronization mechanisms if accessed from multiple threads simultaneously.
 
 ## Type Safety
 
@@ -278,9 +353,11 @@ The engine emphasizes type safety through:
 ## Dependencies
 
 All current dependencies are from Python's standard library:
-- `dataclasses` (Python 3.7+)
-- `enum` (standard library, `StrEnum` requires Python 3.11+)
-- `typing` (standard library, enhanced type hints)
+- `dataclasses` (Python 3.7+) - For immutable instrument classes
+- `enum` (standard library, `StrEnum` requires Python 3.11+) - For type-safe asset classes and currencies
+- `typing` (standard library, enhanced type hints) - For type annotations
+- `abc` (standard library) - For abstract base classes (Exchange interface)
+- `uuid` (standard library) - Used by PaperExchange for generating order IDs
 
 No third-party packages are required. See `requirements.txt` for details.
 

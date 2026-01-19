@@ -210,6 +210,7 @@ class Equity(Instrument):
         # This ensures that the common data is parsed correctly
         parsed_data = super().from_api_data(
             data,
+            asset_class=AssetClass.EQUITY,
             dividend_yield=float(data.get("dividend_yield", 0.0)))
         
         return parsed_data

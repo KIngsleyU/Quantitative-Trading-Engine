@@ -1,5 +1,6 @@
 # Entry point to run the bot
 from core.instrument import AssetClass, Currency, Instrument, Equity, Future, Option, Crypto, Forex
+from core.exchange import Exchange, PaperExchange, BinanceExchange, InteractiveBrokersExchange, CMEExchange
 
 def main():
     instrument1 = Instrument.from_api_data({
@@ -91,6 +92,17 @@ def main():
     print(type(btc))
     print(btc)
     
+    es_future = Future.from_api_data({
+        "symbol": "ESZ26",
+        "asset_class": "FUTURE",
+        "exchange_code": "CME",
+        "expiration_date": "2026-01-01"
+    })
+    print("--------------------------------")
+    print("ES Future:")
+    print(type(es_future))
+    print(es_future)
+    
     portfolio = [aapl, spy, spy_option, btc]
     print()
     print("--------------------------------")
@@ -113,6 +125,51 @@ def main():
         is_valid = instrument.is_price_valid(bad_price)
         print(f"  Is {bad_price} a valid price? {is_valid}")
     
+    print(f"Loaded: {aapl.symbol}, {btc.symbol}, {es_future.symbol}\n")
+    print()
+    print("--------------------------------")
+    print("Testing the Exchange Interface (Abstraction, Polymorphism)")
+    print("--------------------------------")
+    print("--- 2. Initializing Exchanges ---")
+    
+    # Notice they are all type 'Exchange', but different implementations
+    exchanges = [
+        PaperExchange("Simulated Paper Account"),
+        BinanceExchange("Binance Real Acct"),
+        InteractiveBrokersExchange("IBKR Pro"),
+        CMEExchange("CME Direct")
+    ]
+
+    for ex in exchanges:
+        ex.connect()
+    
+    print("\n--- 3. Simulating Order Routing ---")
+    
+    # We want to buy 1 unit of each asset.
+    # We need to decide WHICH exchange to send the order to.
+    
+    orders_to_place = [
+        (aapl, "IBKR Pro"),       # Send Stock to IB
+        (btc, "Binance Real Acct"), # Send Crypto to Binance
+        (es_future, "CME Direct")   # Send Future to CME
+    ]
+
+    for instrument, target_exchange_name in orders_to_place:
+        print(f"\nProcessing Order for {instrument.symbol}...")
+        
+        # Find the correct exchange object in our list
+        # (In a real bot, an 'OrderRouter' class would do this automatically)
+        target_exchange = next(ex for ex in exchanges if ex.name == target_exchange_name)
+        
+        # Polymorphism! We call the same methods regardless of the exchange type.
+        current_price = target_exchange.get_market_price(instrument)
+        print(f"  Price on {target_exchange.name}: ${current_price:,.2f}")
+        
+        if current_price > 0:
+            order_id = target_exchange.place_order(instrument, 1.0, "BUY")
+            print(f"  Order Success! ID: {order_id}")
+        else:
+            print(f"  Order Failed: Invalid price from exchange.")# 4. Test the Exchange Interface
 
 if __name__ == "__main__":
     main()
