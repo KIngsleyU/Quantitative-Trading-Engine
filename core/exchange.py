@@ -101,7 +101,12 @@ class PaperExchange(Exchange):
             return 1.0
         return 100.00 + (instrument.lot_size * 0.1) 
 
-    def place_order(self, instrument: Instrument, quantity: float, side: str) -> str:
+    def place_order(
+        self, 
+        instrument: Instrument, 
+        quantity: float, 
+        side: str,
+        price: float = None) -> str:
         if not self._is_connected:
             raise ConnectionError("Exchange not connected.")
             
@@ -110,7 +115,8 @@ class PaperExchange(Exchange):
         order_id = str(uuid.uuid4())[:8]
         
         # Calculate approximate cost
-        price = self.get_market_price(instrument)
+        if not price:
+            price = self.get_market_price(instrument)
         cost = instrument.calculate_value(price, quantity)
         
         print(f"[{self.name}] {side} ORDER FILLED: {quantity}x {instrument.symbol} @ ${price:.2f}")

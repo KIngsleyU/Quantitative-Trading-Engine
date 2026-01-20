@@ -1,6 +1,8 @@
 # Entry point to run the bot
 from core.instrument import AssetClass, Currency, Instrument, Equity, Future, Option, Crypto, Forex
 from core.exchange import Exchange, PaperExchange, BinanceExchange, InteractiveBrokersExchange, CMEExchange
+from core.strategy import Strategy
+from strategies.buy_the_dip import BuyTheDipStrategy
 
 def main():
     instrument1 = Instrument.from_api_data({
@@ -171,5 +173,74 @@ def main():
         else:
             print(f"  Order Failed: Invalid price from exchange.")# 4. Test the Exchange Interface
 
+    print()
+    print("--------------------------------")
+    print("Testing the Strategy Interface (Abstraction, Polymorphism)")
+    print("--------------------------------")
+    print("--- 4. Initializing Strategies ---")
+    
+    # 1. Setup Environment
+    # We use a paper exchange so we don't lose real money!
+    exchange = PaperExchange("Backtest Exchange")
+    exchange.connect()
+
+    # 2. Setup Instrument
+    aapl = Equity.from_api_data({
+        "symbol": "AAPL", "asset_class": "EQUITY", "exchange_code": "NASDAQ",
+        "dividend_yield": 0.005
+    })
+
+    # 3. Setup Strategy
+    strategy = BuyTheDipStrategy("DipBuyer_v1")
+    strategy.subscribe(aapl)
+    strategy.on_start()
+
+    # 4. The Simulation Data (The "Time Machine")
+    # We simulate the price dropping, then recovering
+    market_data = [
+        150.00, 
+        148.00, 
+        144.00, # <--- This should trigger our BuyTheDip (threshold is 145.00)
+        142.00, 
+        146.00,
+        150.00
+    ]
+
+    print("\n--- BEGINNING MARKET DATA LOOP ---")
+    
+    # 5. The Engine Loop (Heartbeat)
+    for price in market_data:
+        print(f"\n[TICK] New Market Price: ${price:.2f}")
+        
+        # A. Feed the Brain (Inject Data)
+        # We ask the strategy: "Here is the price, what do you want to do?"
+        signal = strategy.on_market_data(aapl, price)
+        
+        # B. Check for a Signal (The Decision)
+        if signal:
+            print(f"  >>> SIGNAL RECEIVED: {signal.side} {signal.instrument.symbol} (Strength: {signal.strength})")
+            
+            # C. Risk Check Layer (The Guardrail)
+            # (In the future, a RiskManager class would go here to say YES/NO)
+            # For now, we assume all signals are valid.
+            
+            # D. Execution (The Action)
+            try:
+                # We place the order on the exchange
+                order_id = exchange.place_order(
+                    signal.instrument, 
+                    quantity=10, 
+                    side=signal.side,
+                    price=price)
+                print(f"  >>> EXECUTION CONFIRMED: Order ID {order_id}")
+            except Exception as e:
+                print(f"  >>> EXECUTION FAILED: {e}")
+                
+        else:
+            print("  ... Strategy is holding (No Signal).")
+
+    # 4. CLEANUP: Shut down gracefully
+    print("\n--- 4. Session Ended ---")
+    strategy.on_stop()
 if __name__ == "__main__":
     main()

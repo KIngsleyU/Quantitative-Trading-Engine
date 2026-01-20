@@ -41,12 +41,13 @@ The instrument hierarchy uses inheritance to model different asset classes while
 Quantitative-Trading-Engine/
 ├── core/                    # Core domain models and interfaces
 │   ├── instrument.py        # Instrument hierarchy (Equity, Future, Option, Crypto, Forex)
-│   ├── strategy.py          # Base strategy interface
+│   ├── strategy.py          # Base strategy interface and core strategy definitions
 │   └── exchange.py          # Exchange interface abstraction
 ├── execution/               # Trade execution and portfolio management
 │   └── portfolio.py         # Portfolio tracking and risk management
 ├── strategies/              # Trading strategy implementations
-│   └── moving_average.py    # Example: Moving average crossover strategy
+│   ├── buy_the_dip.py       # Example: Buy-the-dip strategy implementation
+│   └── moving_average.py    # Placeholder for moving average crossover strategy
 └── main.py                  # Application entry point and examples
 ```
 
@@ -96,9 +97,17 @@ is_valid = aapl.is_price_valid(150.01)  # True if tick_size = 0.01
 
 ### Strategy Framework (`core/strategy.py`)
 
-*Status: Placeholder - To be implemented*
+The strategy module defines the core abstraction for trading logic and provides a concrete example implementation.
 
-The strategy interface will define the contract that all trading strategies must implement. This will allow the engine to run multiple strategies concurrently and evaluate their signals uniformly.
+#### Components
+
+- **TradingSignal**: Immutable value object representing a trading decision (instrument, side, strength)
+- **Strategy**: Abstract base class defining the lifecycle of a strategy:
+  - `on_start()`: Initialization and warm-up logic
+  - `on_market_data(instrument, price)`: Core decision-making hook, returns an optional `TradingSignal`
+  - `on_stop()`: Cleanup and shutdown logic
+
+This allows the engine to run multiple strategies concurrently and evaluate their signals uniformly and independently of exchanges or execution.
 
 ### Exchange Interface (`core/exchange.py`)
 
@@ -154,9 +163,14 @@ Will provide centralized portfolio tracking, position management, and risk monit
 
 ### Strategy Implementations (`strategies/`)
 
-*Status: Placeholder - To be implemented*
+The strategies package contains concrete implementations of the `Strategy` abstraction.
 
-The strategies directory will contain concrete strategy implementations (e.g., moving average crossover, mean reversion) that implement the base strategy interface.
+#### Implementations
+
+- **BuyTheDipStrategy** (`strategies/buy_the_dip.py`): Buys when price falls below a configured threshold
+- **moving_average.py**: Placeholder for a moving average crossover strategy
+
+These strategies can be extended or replaced without changing the engine core, as long as they conform to the `Strategy` interface.
 
 ## Installation
 
@@ -265,7 +279,7 @@ for ex in exchanges:
 
 ### Running the Example
 
-The `main.py` file demonstrates instrument creation, exchange abstraction, and polymorphic usage:
+The `main.py` file demonstrates instrument creation, exchange abstraction, strategy execution, and polymorphic usage:
 
 ```bash
 python main.py
@@ -278,6 +292,8 @@ This will:
 - Initialize multiple exchange implementations (Paper, Binance, IBKR, CME)
 - Demonstrate exchange abstraction and polymorphism (same interface, different implementations)
 - Simulate order routing across different exchanges based on asset type
+- Initialize and run a `BuyTheDipStrategy` over a stream of simulated market data
+- Demonstrate the full decision loop: market data → strategy signal → (future) risk check → execution
 
 ## Development Roadmap
 
@@ -295,12 +311,13 @@ This will:
 - ✅ Multiple exchange implementations (PaperExchange, BinanceExchange, InteractiveBrokersExchange, CMEExchange)
 - ✅ Connection management and order placement interface
 - ✅ Polymorphic exchange handling (same interface, different implementations)
-- ✅ Example usage in `main.py` demonstrating instrument and exchange polymorphism
+- ✅ Strategy framework (`core/strategy.py`) with `Strategy` base class and `TradingSignal`
+- ✅ Example strategy implementation (`BuyTheDipStrategy`) in both `core.strategy` and `strategies/buy_the_dip.py`
+- ✅ Example usage in `main.py` demonstrating instrument, exchange, and strategy polymorphism
 
 **Placeholders (Not Yet Implemented):**
-- ⏳ Strategy framework (`core/strategy.py`)
 - ⏳ Portfolio management (`execution/portfolio.py`)
-- ⏳ Strategy implementations (`strategies/`)
+- ⏳ Additional strategy implementations (`strategies/moving_average.py`, mean reversion, etc.)
 - ⏳ Backtesting engine
 - ⏳ Risk management module
 - ⏳ Order routing system (currently manual in examples)
