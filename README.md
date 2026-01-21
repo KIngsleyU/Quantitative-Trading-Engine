@@ -157,9 +157,19 @@ order_id = paper.place_order(equity, 10.0, "BUY")
 
 ### Portfolio Management (`execution/portfolio.py`)
 
-*Status: Placeholder - To be implemented*
+The portfolio module tracks cash, open positions, and realized PnL, and updates
+state in response to filled orders coming from the execution layer.
 
-Will provide centralized portfolio tracking, position management, and risk monitoring. Will ensure all trades comply with risk limits before execution.
+#### Components
+
+- **Portfolio**: 
+  - Maintains available cash (liquidity)
+  - Manages open positions per instrument using `Position`
+  - Accumulates realized PnL from closed trades
+  - Provides helpers for equity calculation (`get_total_equity`) and basic pre-trade checks (`is_cash_enough`)
+
+This module encapsulates portfolio state, separating it from strategy and exchange
+logic, and forms the basis for future risk management and account-level controls.
 
 ### Strategy Implementations (`strategies/`)
 
@@ -312,11 +322,13 @@ This will:
 - ✅ Connection management and order placement interface
 - ✅ Polymorphic exchange handling (same interface, different implementations)
 - ✅ Strategy framework (`core/strategy.py`) with `Strategy` base class and `TradingSignal`
-- ✅ Example strategy implementation (`BuyTheDipStrategy`) in both `core.strategy` and `strategies/buy_the_dip.py`
-- ✅ Example usage in `main.py` demonstrating instrument, exchange, and strategy polymorphism
+- ✅ Example strategy implementations:
+  - `BuyTheDipStrategy` in `core.strategy` (simple threshold-based BUY logic)
+  - `BuyTheDipStrategy` in `strategies/buy_the_dip.py` (stateful, with take-profit/stop-loss)
+- ✅ Portfolio layer (`execution/portfolio.py`) and per-instrument position model (`execution/position.py`)
+- ✅ Example usage in `main.py` demonstrating instrument, exchange, portfolio, and strategy polymorphism
 
 **Placeholders (Not Yet Implemented):**
-- ⏳ Portfolio management (`execution/portfolio.py`)
 - ⏳ Additional strategy implementations (`strategies/moving_average.py`, mean reversion, etc.)
 - ⏳ Backtesting engine
 - ⏳ Risk management module

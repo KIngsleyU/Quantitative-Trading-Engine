@@ -3,7 +3,7 @@ from core.instrument import AssetClass, Currency, Instrument, Equity, Future, Op
 from core.exchange import Exchange, PaperExchange, BinanceExchange, InteractiveBrokersExchange, CMEExchange
 from core.strategy import Strategy
 from strategies.buy_the_dip import BuyTheDipStrategy
-
+from execution.portfolio import Portfolio
 def main():
     instrument1 = Instrument.from_api_data({
         "symbol": "AAPL",
@@ -190,6 +190,8 @@ def main():
         "dividend_yield": 0.005
     })
 
+    portfolio = Portfolio()
+
     # 3. Setup Strategy
     strategy = BuyTheDipStrategy("DipBuyer_v1")
     strategy.subscribe(aapl)
@@ -201,7 +203,7 @@ def main():
         150.00, 
         148.00, 
         144.00, # <--- This should trigger our BuyTheDip (threshold is 145.00)
-        142.00, 
+        146.88, 
         146.00,
         150.00
     ]
@@ -227,12 +229,14 @@ def main():
             # D. Execution (The Action)
             try:
                 # We place the order on the exchange
-                order_id = exchange.place_order(
-                    signal.instrument, 
-                    quantity=10, 
-                    side=signal.side,
-                    price=price)
-                print(f"  >>> EXECUTION CONFIRMED: Order ID {order_id}")
+                if portfolio.is_cash_enough(signal.instrument, 10, price, signal.side):
+                    order_id = exchange.place_order(
+                        signal.instrument, 
+                        quantity=10, 
+                        side=signal.side,
+                        price=price)
+                    print(f"  >>> EXECUTION CONFIRMED: Order ID {order_id}")
+                    portfolio.on_fill(signal.instrument, signal.side, 10, price)
             except Exception as e:
                 print(f"  >>> EXECUTION FAILED: {e}")
                 
@@ -242,5 +246,9 @@ def main():
     # 4. CLEANUP: Shut down gracefully
     print("\n--- 4. Session Ended ---")
     strategy.on_stop()
+    print(f"Portfolio Cash: ${portfolio.cash:.2f} USD")
+    portfolio.get_positions()
+    print(f"Portfolio Realized PnL: ${portfolio.realized_pnl:.2f} USD")
+    print(f"Portfolio Total Equity: ${portfolio.get_total_equity({aapl: 150.00}):.2f} USD")
 if __name__ == "__main__":
     main()
